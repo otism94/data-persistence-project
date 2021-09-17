@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
@@ -11,14 +12,21 @@ public class MainManager : MonoBehaviour
     public Rigidbody Ball;
 
     public Text ScoreText;
-    public GameObject GameOverText;
+    [SerializeField]
+    private GameObject GameOverText;
+    [SerializeField]
+    private GameObject NameInput;
+    [SerializeField]
+    private GameObject SubmitButton;
+    [SerializeField]
+    private Text HighScoreDisplay;
     
     private bool m_Started = false;
     private int m_Points;
     
     private bool m_GameOver = false;
+    private bool isNewHighScore = false;
 
-    
     // Start is called before the first frame update
     void Start()
     {
@@ -36,11 +44,15 @@ public class MainManager : MonoBehaviour
                 brick.onDestroyed.AddListener(AddPoint);
             }
         }
+
+        SaveManager.Instance.LoadHighScore();
+        HighScoreDisplay.text = 
+            SaveManager.Instance.highScoreName == null ? "No high score recorded" : $"High Score: {SaveManager.Instance.highScoreName} - {SaveManager.Instance.highScorePoints}pts";
     }
 
     private void Update()
     {
-        if (!m_Started)
+        if (!m_Started && !m_GameOver)
         {
             if (Input.GetKeyDown(KeyCode.Space))
             {
@@ -53,11 +65,12 @@ public class MainManager : MonoBehaviour
                 Ball.AddForce(forceDir * 2.0f, ForceMode.VelocityChange);
             }
         }
-        else if (m_GameOver)
+        else if (m_GameOver && !isNewHighScore)
         {
             if (Input.GetKeyDown(KeyCode.Space))
             {
                 SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+                m_Started = true;
             }
         }
     }
@@ -71,6 +84,35 @@ public class MainManager : MonoBehaviour
     public void GameOver()
     {
         m_GameOver = true;
+        if (m_Points > SaveManager.Instance.highScorePoints) 
+        {
+            isNewHighScore = true;
+            GameOverText.GetComponent<Text>().text = "New High Score! \n Please enter your name.";
+            NameInput.SetActive(true);
+            SubmitButton.SetActive(true);
+        }
+        else
+        {
+            GameOverText.GetComponent<Text>().text = "Game Over \n Press space to restart";
+        }
+
         GameOverText.SetActive(true);
     }
+
+    public void SubmitHighScore()
+    {
+        SaveManager.Instance.highScoreName = NameInput.GetComponent<InputField>().text;
+        SaveManager.Instance.highScorePoints = m_Points;
+        SaveManager.Instance.SaveHighScore();
+
+        HighScoreDisplay.text = $"High Score: {SaveManager.Instance.highScoreName} - {SaveManager.Instance.highScorePoints}pts";
+        NameInput.SetActive(false);
+        SubmitButton.SetActive(false);
+        isNewHighScore = false;
+        m_Points = 0;
+
+        GameOver();
+    }
+
+    
 }
